@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>双线大战</title>
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Orbitron:wght@500;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#05070d;
+  --panel:#0d1424;
+  --line:#1c2740;
+  --p1:#35e0ff;
+  --p2:#ff5d7a;
+  --amber:#ffc857;
+  --text:#e8edf7;
+  --dim:#8b98b5;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  background:radial-gradient(1200px 700px at 50% -10%, #0d1526 0%, #070b14 55%, #04060c 100%);
+  color:var(--text);
+  font-family:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;
+  display:flex;align-items:center;justify-content:center;
+  min-height:100vh;padding:16px;
+  user-select:none;-webkit-user-select:none;
+}
+.wrap{width:min(1000px,100%,calc((100vh - 200px)*1.6));}
+/* HUD */
+.hud{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 4px 12px}
+.side{display:flex;align-items:center;gap:10px;min-width:0}
+.side.right{flex-direction:row-reverse;text-align:right}
+.dot{width:12px;height:12px;border-radius:50%;flex:none}
+.dot.p1{background:var(--p1);box-shadow:0 0 10px var(--p1)}
+.dot.p2{background:var(--p2);box-shadow:0 0 10px var(--p2)}
+.pname{font-size:13px;color:var(--dim);line-height:1.2}
+.rscore{font-family:'Orbitron','Noto Sans SC',sans-serif;font-size:24px;font-weight:700;letter-spacing:.5px;line-height:1}
+.rscore b{font-weight:900}
+.mid{text-align:center;flex:1;min-width:0}
+.setline{font-size:13px;color:var(--dim)}
+.setscore{font-family:'Orbitron','Noto Sans SC',sans-serif;font-size:18px;font-weight:700;margin-top:2px}
+.setscore b{color:var(--amber);font-weight:900}
+/* frame */
+.frame{position:relative;width:100%;aspect-ratio:8/5;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--bg);box-shadow:0 24px 80px rgba(0,0,0,.55)}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.pause-btn{
+  position:absolute;top:10px;right:12px;z-index:6;
+  min-height:40px;padding:0 14px;border:1px solid var(--line);border-radius:8px;
+  background:rgba(13,20,36,.72);color:var(--dim);font:500 13px 'Noto Sans SC',sans-serif;cursor:pointer;
+}
+.pause-btn:hover{color:var(--text);border-color:#2c3a5c}
+/* overlays */
+.overlay{
+  position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  background:rgba(4,7,13,.84);backdrop-filter:blur(6px);text-align:center;padding:20px;
+}
+.overlay.hidden{display:none}
+.o-title{font-family:'Orbitron','Noto Sans SC',sans-serif;font-weight:900;font-size:clamp(26px,5vw,44px);letter-spacing:2px;color:var(--text)}
+.o-title.accent{color:var(--amber)}
+.o-sub{font-size:15px;color:var(--dim);line-height:1.7}
+.o-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+.btn{
+  min-height:46px;padding:0 26px;border:1px solid var(--line);border-radius:10px;
+  background:var(--panel);color:var(--text);font:500 15px 'Noto Sans SC',sans-serif;cursor:pointer;
+  transition:border-color .15s,background .15s;
+}
+.btn:hover{border-color:#3a4c78;background:#111a30}
+.btn.primary{border-color:var(--amber);background:var(--amber);color:#0b0f1a;font-weight:700}
+.btn.primary:hover{background:#ffd67a;border-color:#ffd67a}
+.btn:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.menu-title{font-family:'Orbitron','Noto Sans SC',sans-serif;font-weight:900;font-size:clamp(34px,7vw,58px);letter-spacing:6px;color:var(--text);text-shadow:0 0 26px rgba(53,224,255,.35)}
+.menu-sub{font-size:15px;color:var(--dim);letter-spacing:1px}
+.rule-line{font-size:13px;color:var(--dim);line-height:1.9}
+.rule-line b{color:var(--text);font-weight:500}
+/* hint */
+.hint{text-align:center;font-size:13px;color:var(--dim);margin-top:10px;line-height:1.6}
+.hint b{color:var(--text);font-weight:500}
+/* touch pads */
+.pad{position:absolute;bottom:10px;display:none;z-index:5;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(2,56px);gap:6px;opacity:.9}
+.pad.show{display:grid}
+.pad[data-player="0"]{left:10px}
+.pad[data-player="1"]{right:10px}
+.pad-btn{
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);border-radius:10px;background:rgba(13,20,36,.7);
+  color:var(--dim);font:500 15px 'Noto Sans SC',sans-serif;cursor:pointer;touch-action:none;
+}
+.pad-btn:active{background:#1a2540;color:var(--text)}
+.pad-btn.u{grid-column:2;grid-row:1}
+.pad-btn.l{grid-column:1;grid-row:2}
+.pad-btn.d{grid-column:2;grid-row:2}
+.pad-btn.r{grid-column:3;grid-row:2}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hud">
+    <div class="side">
+      <span class="dot p1"></span>
+      <div>
+        <div class="pname">蓝方 · 玩家 1</div>
+        <div class="rscore">局 <b id="rs1">0</b></div>
+      </div>
+    </div>
+    <div class="mid">
+      <div class="setline">第 <b id="setNo">1</b> 盘 · 先得 11 局者胜 · 三盘两胜</div>
+      <div class="setscore">盘分 <b id="ss1">0</b> : <b id="ss2">0</b></div>
+    </div>
+    <div class="side right">
+      <span class="dot p2"></span>
+      <div>
+        <div class="pname" id="p2name">红方 · 玩家 2</div>
+        <div class="rscore">局 <b id="rs2">0</b></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="frame">
+    <canvas id="game"></canvas>
+    <button class="pause-btn" id="pauseBtn">暂停</button>
+
+    <div class="overlay" id="menu">
+      <div class="menu-title">双线大战</div>
+      <div class="menu-sub">两条光轨从中线相向而行 · 先无路可走者输掉本局</div>
+      <div class="o-btns">
+        <button class="btn primary" id="btnPvp">双人对战</button>
+        <button class="btn primary" id="btnAi">人机对战</button>
+      </div>
+      <div class="rule-line">
+        先得 <b>11 局</b> 者赢下一盘，整场 <b>三盘两胜</b><br>
+        撞墙撞线前 <b>0.5 秒</b>内按方向键可转向，支持贴墙行驶<br>
+        蓝方 <b>WASD</b> · 红方 <b>方向键</b> · <b>P / Esc</b> 暂停
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="roundEnd">
+      <div class="o-title" id="reTitle"></div>
+      <div class="o-sub" id="reSub"></div>
+      <div class="o-btns">
+        <button class="btn primary" id="btnNextRound">下一局</button>
+        <button class="btn" id="btnMenuRound">返回菜单</button>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="drawRound">
+      <div class="o-title accent">本局平局</div>
+      <div class="o-sub">双方同时无路可走，本局不计分</div>
+      <div class="o-btns">
+        <button class="btn primary" id="btnRedraw">重新开局</button>
+        <button class="btn" id="btnMenuDraw">返回菜单</button>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="setEnd">
+      <div class="o-title accent" id="seTitle"></div>
+      <div class="o-sub" id="seSub"></div>
+      <div class="o-btns">
+        <button class="btn primary" id="btnNextSet">开始下一盘</button>
+        <button class="btn" id="btnMenuSet">返回菜单</button>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="matchEnd">
+      <div class="o-title accent" id="meTitle"></div>
+      <div class="o-sub" id="meSub"></div>
+      <div class="o-btns">
+        <button class="btn primary" id="btnRematch">再来一局</button>
+        <button class="btn" id="btnMenuMatch">返回菜单</button>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="paused">
+      <div class="o-title">已暂停</div>
+      <div class="o-btns">
+        <button class="btn primary" id="btnResume">继续</button>
+        <button class="btn" id="btnMenuPause">返回菜单</button>
+      </div>
+    </div>
+
+    <div class="pad" id="pad1" data-player="0">
+      <button class="pad-btn u" data-dir="0">上</button>
+      <button class="pad-btn l" data-dir="3">左</button>
+      <button class="pad-btn d" data-dir="2">下</button>
+      <button class="pad-btn r" data-dir="1">右</button>
+    </div>
+    <div class="pad" id="pad2" data-player="1">
+      <button class="pad-btn u" data-dir="0">上</button>
+      <button class="pad-btn l" data-dir="3">左</button>
+      <button class="pad-btn d" data-dir="2">下</button>
+      <button class="pad-btn r" data-dir="1">右</button>
+    </div>
+  </div>
+
+  <div class="hint" id="hint"></div>
+</div>
+
+<script>
+'use strict';
+/* ===== 常量 ===== */
+const COLS=120,ROWS=75,CELL=8;
+const W=COLS*CELL,H=ROWS*CELL;
+const UP=0,RIGHT=1,DOWN=2,LEFT=3;
+const DX=[0,1,0,-1],DY=[-1,0,1,0];
+const TICK=45,COUNTDOWN=2100,MAX_STEPS=25000,DANGER_MS=500;
+const COLORS=['#35e0ff','#ff5d7a'];
+const wasd={w:UP,a:LEFT,s:DOWN,d:RIGHT};
+const arr={ArrowUp:UP,ArrowDown:DOWN,ArrowLeft:LEFT,ArrowRight:RIGHT};
+
+/* ===== DOM ===== */
+const $=id=>document.getElementById(id);
+const canvas=$('game'),ctx=canvas.getContext('2d');
+const dpr=Math.min(window.devicePixelRatio||1,2);
+canvas.width=W*dpr;canvas.height=H*dpr;ctx.scale(dpr,dpr);
+const overlayIds=['menu','roundEnd','drawRound','setEnd','matchEnd','paused'];
+
+/* ===== 状态 ===== */
+const S={mode:null,phase:'menu',prevPhase:null,setScore:[0,0],roundScore:[0,0],steps:0};
+let players=[null,null],grid=null;
+let rafId=null,last=0,acc=0,countdownLeft=0;
+
+/* ===== 离屏画布：静态层 + 轨迹层 ===== */
+const bg=document.createElement('canvas');bg.width=W*dpr;bg.height=H*dpr;
+const bctx=bg.getContext('2d');bctx.scale(dpr,dpr);
+function bakeStatic(){
+  bctx.fillStyle='#05070d';bctx.fillRect(0,0,W,H);
+  bctx.strokeStyle='rgba(255,255,255,0.035)';bctx.lineWidth=1;
+  bctx.beginPath();
+  for(let x=16;x<W;x+=16){bctx.moveTo(x+.5,0);bctx.lineTo(x+.5,H);}
+  for(let y=16;y<H;y+=16){bctx.moveTo(0,y+.5);bctx.lineTo(W,y+.5);}
+  bctx.stroke();
+  const midY=(Math.floor(ROWS/2)+0.5)*CELL;
+  bctx.setLineDash([4,7]);bctx.strokeStyle='rgba(110,135,180,0.16)';bctx.lineWidth=1;
+  bctx.beginPath();bctx.moveTo(0,midY);bctx.lineTo(W,midY);bctx.stroke();
+  bctx.setLineDash([]);
+  bctx.strokeStyle='rgba(90,112,160,0.6)';bctx.lineWidth=2;
+  bctx.strokeRect(1,1,W-2,H-2);
+}
+function paintDot(i,x,y){
+  const cx=(x+.5)*CELL,cy=(y+.5)*CELL;
+  bctx.fillStyle=COLORS[i];
+  bctx.globalAlpha=0.2;bctx.beginPath();bctx.arc(cx,cy,CELL*1.25,0,7);bctx.fill();
+  bctx.globalAlpha=1;bctx.beginPath();bctx.arc(cx,cy,CELL*0.45,0,7);bctx.fill();
+}
+function paintSeg(i,x0,y0,x1,y1){
+  const cx0=(x0+.5)*CELL,cy0=(y0+.5)*CELL,cx1=(x1+.5)*CELL,cy1=(y1+.5)*CELL;
+  bctx.beginPath();bctx.moveTo(cx0,cy0);bctx.lineTo(cx1,cy1);
+  bctx.lineJoin='round';bctx.lineCap='round';bctx.strokeStyle=COLORS[i];
+  bctx.globalAlpha=0.2;bctx.lineWidth=CELL*2.4;bctx.stroke();
+  bctx.globalAlpha=1;bctx.lineWidth=CELL*0.85;bctx.stroke();
+}
+
+/* ===== 对局流程 ===== */
+const inB=(x,y)=>x>=0&&x<COLS&&y>=0&&y<ROWS;
+const gi=(x,y)=>y*COLS+x;
+function startRound(){
+  grid=new Uint8Array(COLS*ROWS);
+  const midY=Math.floor(ROWS/2);
+  players=[
+    {x:Math.floor(COLS*0.25),y:midY,dir:RIGHT,q:[],danger:false,dangerT:0},
+    {x:Math.floor(COLS*0.75),y:midY,dir:LEFT,q:[],danger:false,dangerT:0}
+  ];
+  bctx.clearRect(0,0,W,H);
+  bakeStatic();
+  players.forEach((p,i)=>{grid[gi(p.x,p.y)]=i+1;paintDot(i,p.x,p.y);});
+  S.steps=0;
+  S.phase='countdown';countdownLeft=COUNTDOWN;acc=0;last=performance.now();
+  hideOverlays();updateHUD();updatePads();
+  rafId=requestAnimationFrame(loop);
+}
+function tgt(p){return{x:p.x+DX[p.dir],y:p.y+DY[p.dir]};}
+function isSafeCell(x,y){return inB(x,y)&&grid[gi(x,y)]===0;}
+function movePlayer(i,t){
+  const p=players[i];
+  paintSeg(i,p.x,p.y,t.x,t.y);
+  p.x=t.x;p.y=t.y;grid[gi(t.x,t.y)]=i+1;
+}
+function enterDanger(i){
+  const p=players[i];
+  p.danger=true;p.dangerT=performance.now();p.q.length=0;
+}
+function setDirection(p,dir){
+  if(!p)return;
+  if(dir===(p.dir+2)%4||dir===p.dir)return;
+  if(p.danger){
+    p.dir=dir;
+    if(isSafeCell(p.x+DX[p.dir],p.y+DY[p.dir])){p.danger=false;p.dangerT=0;}
+    return;
+  }
+  p.q.push({dir,t:performance.now()});
+  if(p.q.length>3)p.q.shift();
+}
+/* 撞前缓冲挽救：0.5 秒内按过方向键、且该方向无阻挡时，撞上瞬间无缝转向继续行驶 */
+function tryRescue(i){
+  const p=players[i],now=performance.now();
+  for(let k=p.q.length-1;k>=0;k--){
+    const e=p.q[k];
+    if(now-e.t>DANGER_MS)continue;
+    if(e.dir===(p.dir+2)%4)continue;
+    if(isSafeCell(p.x+DX[e.dir],p.y+DY[e.dir])){
+      p.dir=e.dir;p.q.length=0;
+      return true;
+    }
+  }
+  return false;
+}
+function step(){
+  S.steps++;
+  if(S.steps>=MAX_STEPS){roundDraw();return;}
+  const now=performance.now();
+  const st=players.map(p=>{
+    if(p.danger)return -1;
+    while(p.q.length){
+      const e=p.q.shift();
+      if(now-e.t>DANGER_MS)continue;
+      if(e.dir===(p.dir+2)%4||e.dir===p.dir)continue;
+      p.dir=e.dir;break;
+    }
+    return isSafeCell(p.x+DX[p.dir],p.y+DY[p.dir])?1:0;
+  });
+  /* 撞前缓冲：有可用输入则无缝转向，不进入挽救期 */
+  st.forEach((s,i)=>{if(s===0&&tryRescue(i))st[i]=1;});
+  /* 撞后静默挽救期（0.5 秒，无任何提示）：期间按向无阻挡方向即继续 */
+  st.forEach((s,i)=>{if(s===0)enterDanger(i);});
+  const t0=tgt(players[0]),t1=tgt(players[1]);
+  if(st[0]===1&&st[1]===1&&t0.x===t1.x&&t0.y===t1.y){enterDanger(0);enterDanger(1);return;}
+  st.forEach((s,i)=>{if(s===1)movePlayer(i,tgt(players[i]));});
+}
+function resolveDanger(now){
+  const d0=players[0].danger&&now-players[0].dangerT>=DANGER_MS;
+  const d1=players[1].danger&&now-players[1].dangerT>=DANGER_MS;
+  if(!d0&&!d1)return;
+  if(d0&&d1){roundDraw();return;}
+  if(d0){roundWin(1);return;}
+  roundWin(0);
+}
+function playerName(i){return i===0?'蓝方 · 玩家 1':(S.mode==='ai'?'红方 · 电脑 AI':'红方 · 玩家 2');}
+function roundWin(wi){
+  const name=playerName(wi);
+  S.roundScore[wi]++;
+  if(S.roundScore[wi]>=11){
+    S.setScore[wi]++;
+    if(S.setScore[wi]>=2){
+      $('meTitle').textContent=name+' 赢得整场比赛';
+      $('meSub').textContent='最终盘分 '+S.setScore[0]+' : '+S.setScore[1]+'（三盘两胜）';
+      S.phase='matchEnd';showOverlay('matchEnd');
+    }else{
+      $('seTitle').textContent=name+' 赢得第 '+(S.setScore[0]+S.setScore[1])+' 盘';
+      $('seSub').textContent='当前盘分 '+S.setScore[0]+' : '+S.setScore[1]+'（三盘两胜）';
+      S.roundScore=[0,0];
+      S.phase='setEnd';showOverlay('setEnd');
+    }
+  }else{
+    $('reTitle').textContent=name+' 赢得本局';
+    $('reSub').textContent='本盘局分 '+S.roundScore[0]+' : '+S.roundScore[1]+'，先得 11 局赢下一盘';
+    S.phase='roundEnd';showOverlay('roundEnd');
+  }
+  updateHUD();updatePads();
+}
+function roundDraw(){
+  S.phase='draw';showOverlay('drawRound');updatePads();
+}
+
+/* ===== 电脑 AI：洪水填充估空间 + 压迫倾向 ===== */
+function flood(sx,sy){
+  const seen=new Uint8Array(COLS*ROWS);
+  let cnt=1;const stack=[[sx,sy]];seen[gi(sx,sy)]=1;
+  while(stack.length&&cnt<8000){
+    const c=stack.pop();
+    for(let k=0;k<4;k++){
+      const nx=c[0]+DX[k],ny=c[1]+DY[k];
+      if(inB(nx,ny)&&!seen[gi(nx,ny)]&&grid[gi(nx,ny)]===0){seen[gi(nx,ny)]=1;cnt++;stack.push([nx,ny]);}
+    }
+  }
+  return cnt;
+}
+function aiTick(){
+  const ai=players[1];if(!ai)return;
+  const opp=players[0];
+  let best=null;
+  for(let k=0;k<4;k++){
+    if(k===(ai.dir+2)%4)continue;
+    const nx=ai.x+DX[k],ny=ai.y+DY[k];
+    if(!inB(nx,ny)||grid[gi(nx,ny)]!==0)continue;
+    let score=flood(nx,ny);
+    if(k===ai.dir)score+=12;
+    const dist=Math.abs(nx-opp.x)+Math.abs(ny-opp.y);
+    score+=Math.max(0,(50-dist)*1.5);
+    if(!best||score>best.score)best={dir:k,score};
+  }
+  if(best)setDirection(ai,best.dir);
+}
+
+/* ===== 主循环 ===== */
+function loop(now){
+  if(S.phase!=='countdown'&&S.phase!=='playing'){rafId=null;return;}
+  const dt=Math.min(now-last,100);last=now;
+  if(S.phase==='countdown'){
+    countdownLeft-=dt;
+    if(countdownLeft<=0){S.phase='playing';acc=0;}
+    draw(now);
+  }else{
+    acc+=dt;let guard=0;
+    while(acc>=TICK&&S.phase==='playing'&&guard<10){acc-=TICK;guard++;if(S.mode==='ai')aiTick();step();}
+    resolveDanger(now);
+    if(S.phase!=='playing'){draw(now);rafId=null;return;}
+    draw(now);
+  }
+  rafId=requestAnimationFrame(loop);
+}
+function draw(now){
+  ctx.clearRect(0,0,W,H);
+  ctx.drawImage(bg,0,0,W,H);
+  players.forEach((p,i)=>{
+    if(!p)return;
+    const cx=(p.x+.5)*CELL,cy=(p.y+.5)*CELL;
+    const r=CELL*(1.05+0.18*Math.sin(now/130+i));
+    ctx.fillStyle=COLORS[i];
+    ctx.globalAlpha=0.35;ctx.beginPath();ctx.arc(cx,cy,r,0,7);ctx.fill();
+    ctx.globalAlpha=1;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(cx,cy,CELL*0.42,0,7);ctx.fill();
+  });
+  if(S.phase==='countdown'){
+    const n=Math.max(1,Math.ceil(countdownLeft/700));
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillStyle='rgba(232,237,247,0.85)';
+    ctx.font='500 22px "Noto Sans SC",sans-serif';
+    ctx.fillText('准备',W/2,H/2-70);
+    ctx.fillStyle='#ffc857';
+    ctx.font='900 120px Orbitron,"Noto Sans SC",sans-serif';
+    ctx.fillText(String(n),W/2,H/2+6);
+  }
+}
+
+/* ===== 界面控制 ===== */
+function showOverlay(id){overlayIds.forEach(o=>$(o).classList.toggle('hidden',o!==id));}
+function hideOverlays(){overlayIds.forEach(o=>$(o).classList.add('hidden'));}
+function updateHUD(){
+  $('rs1').textContent=S.roundScore[0];
+  $('rs2').textContent=S.roundScore[1];
+  $('ss1').textContent=S.setScore[0];
+  $('ss2').textContent=S.setScore[1];
+  $('setNo').textContent=S.setScore[0]+S.setScore[1]+1;
+  const ai=S.mode==='ai';
+  $('p2name').textContent=ai?'红方 · 电脑 AI':'红方 · 玩家 2';
+  $('hint').innerHTML=ai
+    ?'你控制 <b>蓝方</b>（WASD 或方向键）· 撞前 0.5 秒内按方向键可转向 · 可贴墙行驶 · <b>P / Esc</b> 暂停'
+    :'<b>蓝方</b> WASD · <b>红方</b> 方向键 · 撞前 0.5 秒内按方向键可转向 · 可贴墙行驶 · <b>P / Esc</b> 暂停';
+  $('pauseBtn').style.display=(S.phase==='playing'||S.phase==='countdown')?'block':'none';
+}
+function updatePads(){
+  const coarse=matchMedia('(pointer:coarse)').matches;
+  const act=(S.phase==='playing'||S.phase==='countdown');
+  $('pad1').classList.toggle('show',coarse&&act);
+  $('pad2').classList.toggle('show',coarse&&act&&S.mode==='pvp');
+}
+function pause(){
+  if(S.phase!=='playing'&&S.phase!=='countdown')return;
+  S.prevPhase=S.phase;S.phase='paused';
+  if(rafId){cancelAnimationFrame(rafId);rafId=null;}
+  showOverlay('paused');updateHUD();updatePads();
+}
+function resume(){
+  if(S.phase!=='paused')return;
+  S.phase=S.prevPhase;last=performance.now();acc=0;
+  hideOverlays();updateHUD();updatePads();
+  rafId=requestAnimationFrame(loop);
+}
+function showMenu(){
+  if(rafId){cancelAnimationFrame(rafId);rafId=null;}
+  S.phase='menu';updateHUD();updatePads();showOverlay('menu');
+}
+function startMatch(mode){
+  S.mode=mode;S.setScore=[0,0];S.roundScore=[0,0];
+  startRound();
+}
+function resetMatch(){S.setScore=[0,0];S.roundScore=[0,0];startRound();}
+
+/* ===== 事件绑定 ===== */
+$('btnPvp').addEventListener('click',()=>startMatch('pvp'));
+$('btnAi').addEventListener('click',()=>startMatch('ai'));
+$('btnNextRound').addEventListener('click',startRound);
+$('btnMenuRound').addEventListener('click',showMenu);
+$('btnRedraw').addEventListener('click',startRound);
+$('btnMenuDraw').addEventListener('click',showMenu);
+$('btnNextSet').addEventListener('click',startRound);
+$('btnMenuSet').addEventListener('click',showMenu);
+$('btnRematch').addEventListener('click',resetMatch);
+$('btnMenuMatch').addEventListener('click',showMenu);
+$('btnResume').addEventListener('click',resume);
+$('btnMenuPause').addEventListener('click',showMenu);
+$('pauseBtn').addEventListener('click',pause);
+['pad1','pad2'].forEach(pid=>{
+  const pad=$(pid);
+  pad.addEventListener('pointerdown',e=>{
+    const b=e.target.closest('.pad-btn');if(!b)return;
+    e.preventDefault();
+    const pi=+pad.dataset.player,d=+b.dataset.dir;
+    setDirection(players[pi],d);
+  });
+});
+window.addEventListener('keydown',e=>{
+  const k=e.key;
+  if(k.startsWith('Arrow')||k===' ')e.preventDefault();
+  const lk=k.toLowerCase();
+  if(S.phase==='playing'||S.phase==='countdown'){
+    if(S.mode==='ai'){
+      if(wasd[lk]!==undefined)setDirection(players[0],wasd[lk]);
+      else if(arr[k]!==undefined)setDirection(players[0],arr[k]);
+    }else{
+      if(wasd[lk]!==undefined)setDirection(players[0],wasd[lk]);
+      else if(arr[k]!==undefined)setDirection(players[1],arr[k]);
+    }
+  }
+  if(lk==='p'||k==='Escape'){
+    if(S.phase==='playing'||S.phase==='countdown')pause();
+    else if(S.phase==='paused')resume();
+  }
+});
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden&&(S.phase==='playing'||S.phase==='countdown'))pause();
+});
+
+/* ===== 启动 ===== */
+if(document.fonts)document.fonts.load('900 40px Orbitron');
+bakeStatic();
+updateHUD();updatePads();
+showOverlay('menu');
+</script>
+</body>
+</html>
